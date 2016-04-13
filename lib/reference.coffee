@@ -3,49 +3,27 @@ PDFReference - represents a reference to another object in the PDF object heirar
 By Devon Govett
 ###
 
-zlib = require 'zlib'
-
 class PDFReference
   constructor: (@document, @id, @data = {}) ->
     @gen = 0
     @deflate = null
-    @compress = @document.compress and not @data.Filter
+    @compress = false
     @uncompressedLength = 0
     @chunks = []
-    
-  initDeflate: ->
-    @data.Filter = 'FlateDecode'
-    
-    @deflate = zlib.createDeflate()
-    @deflate.on 'data', (chunk) =>
-      @chunks.push chunk
-      @data.Length += chunk.length
-      
-    @deflate.on 'end', @finalize
-  
+
   write: (chunk) ->
     unless Buffer.isBuffer(chunk)
       chunk = new Buffer(chunk + '\n', 'binary')
-      
     @uncompressedLength += chunk.length
     @data.Length ?= 0
-    
-    if @compress
-      @initDeflate() if not @deflate
-      @deflate.write chunk
-    else
-      @chunks.push chunk
-      @data.Length += chunk.length
-    
+    @chunks.push chunk
+    @data.Length += chunk.length
+
   end: (chunk) ->
     if typeof chunk is 'string' or Buffer.isBuffer(chunk)
       @write chunk
-    
-    if @deflate
-      @deflate.end()
-    else
-      @finalize()
-    
+    @finalize()
+
   finalize: =>
     @offset = @document._offset
     
